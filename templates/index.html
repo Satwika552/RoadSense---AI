@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoadSense AI — Road Damage Detection</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #080c14;
+            --surface: #0d1421;
+            --surface2: #111927;
+            --border: #1e2d42;
+            --accent: #f5a623;
+            --accent2: #e05c2a;
+            --red: #e74c3c;
+            --orange: #e67e22;
+            --green: #2ecc71;
+            --text: #e8edf5;
+            --muted: #5a7191;
+            --glow: rgba(245, 166, 35, 0.15);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(245,166,35,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(245,166,35,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 500px;
+            background: radial-gradient(ellipse, rgba(245,166,35,0.08) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            height: 60px;
+            background: rgba(8,12,20,0.9);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            color: var(--accent);
+        }
+
+        .nav-logo span { color: var(--text); }
+
+        .nav-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            background: var(--accent);
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 2px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        .hero {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 80px 2rem 60px;
+        }
+
+        .hero-tag {
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            color: var(--accent);
+            border: 1px solid rgba(245,166,35,0.3);
+            padding: 4px 16px;
+            border-radius: 2px;
+            margin-bottom: 24px;
+            text-transform: uppercase;
+            animation: fadeUp 0.6s ease both;
+        }
+
+        .hero h1 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(3.5rem, 8vw, 7rem);
+            line-height: 0.95;
+            letter-spacing: 3px;
+            animation: fadeUp 0.6s 0.1s ease both;
+        }
+
+        .hero h1 .highlight {
+            color: var(--accent);
+            text-shadow: 0 0 40px rgba(245,166,35,0.4);
+        }
+
+        .hero h1 .outline {
+            -webkit-text-stroke: 1px rgba(245,166,35,0.4);
+            color: transparent;
+        }
+
+        .hero p {
+            max-width: 520px;
+            margin: 24px auto 0;
+            color: var(--muted);
+            font-size: 1rem;
+            line-height: 1.7;
+            animation: fadeUp 0.6s 0.2s ease both;
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin-top: 48px;
+            animation: fadeUp 0.6s 0.3s ease both;
+        }
+
+        .hero-stat-num {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2.2rem;
+            color: var(--accent);
+            line-height: 1;
+        }
+
+        .hero-stat-label {
+            font-size: 0.72rem;
+            color: var(--muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .main {
+            position: relative;
+            z-index: 1;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 2rem 6rem;
+        }
+
+        .upload-section { animation: fadeUp 0.6s 0.4s ease both; }
+
+        .section-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .upload-zone {
+            border: 1.5px dashed var(--border);
+            border-radius: 8px;
+            padding: 60px 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--surface);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--glow);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .upload-zone:hover::before,
+        .upload-zone.dragover::before { opacity: 1; }
+
+        .upload-zone:hover,
+        .upload-zone.dragover { border-color: var(--accent); }
+
+        .upload-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
+            background: rgba(245,166,35,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            transition: transform 0.3s;
+        }
+
+        .upload-zone:hover .upload-icon { transform: scale(1.1); }
+
+        .upload-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
+
+        .upload-sub { color: var(--muted); font-size: 0.85rem; }
+        .upload-sub span { color: var(--accent); font-weight: 500; }
+
+        .file-types {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .file-type-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            padding: 3px 10px;
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            color: var(--muted);
+        }
+
+        #fileInput { display: none; }
+
+        .btn-analyze {
+            width: 100%;
+            margin-top: 16px;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #000;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.2rem;
+            letter-spacing: 3px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-analyze:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(245,166,35,0.3);
+        }
+
+        .btn-analyze.visible { display: flex; }
+
+        .loading { display: none; text-align: center; padding: 40px; }
+        .loading.active { display: block; }
+
+        .loading-bar {
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .loading-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            animation: loadBar 2s ease infinite;
+            border-radius: 2px;
+        }
+
+        @keyframes loadBar {
+            0% { width: 0%; margin-left: 0; }
+            50% { width: 70%; margin-left: 0; }
+            100% { width: 0%; margin-left: 100%; }
+        }
+
+        .loading-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--accent);
+            letter-spacing: 2px;
+        }
+
+        #results { display: none; margin-top: 48px; animation: fadeUp 0.5s ease both; }
+        #results.active { display: block; }
+
+        .health-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 32px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .health-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg, var(--accent), var(--accent2));
+        }
+
+        .health-score-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border: 3px solid;
+        }
+
+        .health-score-num {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2.2rem;
+            line-height: 1;
+        }
+
+        .health-score-label { font-size: 0.65rem; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+
+        .health-info h2 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.8rem;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        .health-info p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; }
+        .stat-card.severe::after { background: var(--red); }
+        .stat-card.moderate::after { background: var(--orange); }
+        .stat-card.minor::after { background: var(--green); }
+
+        .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; line-height: 1; margin-bottom: 4px; }
+        .stat-card.severe .stat-num { color: var(--red); }
+        .stat-card.moderate .stat-num { color: var(--orange); }
+        .stat-card.minor .stat-num { color: var(--green); }
+
+        .stat-title { font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .result-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+
+        .result-card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        .result-card-body { padding: 20px; }
+
+        #resultImage { width: 100%; border-radius: 4px; display: block; }
+
+        .detection-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .detection-list::-webkit-scrollbar { width: 4px; }
+        .detection-list::-webkit-scrollbar-track { background: var(--bg); }
+        .detection-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .detection-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--surface2);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .detection-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .detection-dot.Severe { background: var(--red); box-shadow: 0 0 8px var(--red); }
+        .detection-dot.Moderate { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
+        .detection-dot.Minor { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+        .detection-info { flex: 1; }
+        .detection-type { font-weight: 500; color: var(--text); }
+        .detection-meta { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+        .detection-conf { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent); }
+
+        .btn-download {
+            width: 100%;
+            padding: 14px;
+            background: transparent;
+            color: var(--accent);
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 3px;
+            border: 1.5px solid var(--accent);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 16px;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+
+        .btn-download:hover { background: var(--glow); box-shadow: 0 0 20px rgba(245,166,35,0.2); }
+
+        .no-damage {
+            text-align: center;
+            padding: 40px;
+            color: var(--green);
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+        }
+
+        .how-it-works { margin-top: 80px; animation: fadeUp 0.6s 0.5s ease both; }
+
+        .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 24px; }
+
+        .step {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px 20px;
+        }
+
+        .step-num { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; color: rgba(245,166,35,0.15); line-height: 1; margin-bottom: 12px; }
+        .step-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; }
+        .step-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.6; }
+        .step-icon { font-size: 1.5rem; margin-bottom: 12px; }
+
+        footer {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 32px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.8rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        footer span { color: var(--accent); }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .results-grid { grid-template-columns: 1fr; }
+            .steps { grid-template-columns: repeat(2, 1fr); }
+            .hero-stats { gap: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="nav-logo">
+            🛣️ Road<span>Sense</span>
+            <div class="nav-badge">AI v1.0</div>
+        </div>
+        <div class="nav-links">
+            <span>ORIGIN 2026</span>
+            <span>SIMATS Engineering</span>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-tag">⚡ Powered by YOLOv8 Computer Vision</div>
+        <h1>
+            <span class="highlight">DETECT.</span><br>
+            <span class="outline">MAP.</span><br>
+            <span class="highlight">REPORT.</span>
+        </h1>
+        <p>AI-powered real-time road damage detection system. Upload an image and get instant analysis with severity classification and civic reports.</p>
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="hero-stat-num">4</div>
+                <div class="hero-stat-label">Damage Types</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-num">3</div>
+                <div class="hero-stat-label">Severity Levels</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-num">PDF</div>
+                <div class="hero-stat-label">Civic Reports</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-num">RT</div>
+                <div class="hero-stat-label">Real Time</div>
+            </div>
+        </div>
+    </section>
+
+    <main class="main">
+
+        <section class="upload-section">
+            <div class="section-label">01 — Upload Road Image</div>
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon">📸</div>
+                <div class="upload-title">Drop your road image here</div>
+                <div class="upload-sub">or <span>click to browse</span> from your device</div>
+                <div class="file-types">
+                    <span class="file-type-badge">JPG</span>
+                    <span class="file-type-badge">PNG</span>
+                    <span class="file-type-badge">MP4</span>
+                    <span class="file-type-badge">AVI</span>
+                </div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*,video/*">
+            <button class="btn-analyze" id="analyzeBtn" onclick="analyzeImage()">
+                🔍 ANALYZE ROAD DAMAGE
+            </button>
+        </section>
+
+        <div class="loading" id="loading">
+            <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+            <div class="loading-text">SCANNING ROAD SURFACE...</div>
+        </div>
+
+        <div id="results">
+            <div class="section-label">02 — Detection Results</div>
+
+            <div class="health-card">
+                <div class="health-score-circle" id="healthCircle">
+                    <div class="health-score-num" id="healthNum">--</div>
+                    <div class="health-score-label">/ 100</div>
+                </div>
+                <div class="health-info">
+                    <h2 id="healthLabel">ANALYZING...</h2>
+                    <p id="healthRec">Processing road surface data...</p>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card severe">
+                    <div class="stat-num" id="severeCount">0</div>
+                    <div class="stat-title">🔴 Severe</div>
+                </div>
+                <div class="stat-card moderate">
+                    <div class="stat-num" id="moderateCount">0</div>
+                    <div class="stat-title">🟠 Moderate</div>
+                </div>
+                <div class="stat-card minor">
+                    <div class="stat-num" id="minorCount">0</div>
+                    <div class="stat-title">🟢 Minor</div>
+                </div>
+            </div>
+
+            <div class="results-grid">
+                <div class="result-card">
+                    <div class="result-card-header">📍 Detected Damage Map</div>
+                    <div class="result-card-body">
+                        <img id="resultImage" src="" alt="Detection Result">
+                    </div>
+                </div>
+                <div class="result-card">
+                    <div class="result-card-header">📋 Detection Log</div>
+                    <div class="result-card-body">
+                        <div class="detection-list" id="detectionList"></div>
+                        <div class="no-damage" id="noDamage" style="display:none;">
+                            ✅ NO DAMAGE DETECTED<br>
+                            <span style="font-size:0.9rem;color:var(--muted);font-family:'DM Sans',sans-serif;">Road surface appears to be in good condition.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <a class="btn-download" id="downloadBtn" href="#" target="_blank">
+                📄 DOWNLOAD CIVIC PDF REPORT
+            </a>
+        </div>
+
+        <section class="how-it-works">
+            <div class="section-label">03 — How It Works</div>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-icon">📷</div>
+                    <div class="step-num">01</div>
+                    <div class="step-title">Capture</div>
+                    <div class="step-desc">Upload any road image or video from a dashcam, phone, or drone.</div>
+                </div>
+                <div class="step">
+                    <div class="step-icon">🧠</div>
+                    <div class="step-num">02</div>
+                    <div class="step-title">Detect</div>
+                    <div class="step-desc">YOLOv8 scans every frame and identifies potholes, cracks, and damage.</div>
+                </div>
+                <div class="step">
+                    <div class="step-icon">📊</div>
+                    <div class="step-num">03</div>
+                    <div class="step-title">Classify</div>
+                    <div class="step-desc">Each damage is classified as Minor, Moderate, or Severe with confidence scores.</div>
+                </div>
+                <div class="step">
+                    <div class="step-icon">📄</div>
+                    <div class="step-num">04</div>
+                    <div class="step-title">Report</div>
+                    <div class="step-desc">Auto-generates a PDF civic report ready to send to municipalities.</div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        Built for <span>ORIGIN 2026</span> · SIMATS Engineering · Chennai ·
+        <span>RoadSense AI</span> — Detect. Map. Report.
+    </footer>
+
+    <script>
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput  = document.getElementById('fileInput');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        let selectedFile = null;
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) handleFile(e.target.files[0]);
+        });
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+        });
+
+        function handleFile(file) {
+            selectedFile = file;
+            uploadZone.querySelector('.upload-title').textContent = `✅ ${file.name}`;
+            uploadZone.querySelector('.upload-sub').textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB — Ready to analyze`;
+            uploadZone.style.borderColor = 'var(--accent)';
+            analyzeBtn.classList.add('visible');
+        }
+
+        function analyzeImage() {
+            if (!selectedFile) return;
+
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('results').classList.remove('active');
+            analyzeBtn.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            fetch('/detect', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('active');
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    analyzeBtn.style.display = 'flex';
+                    return;
+                }
+                displayResults(data);
+            })
+            .catch(err => {
+                document.getElementById('loading').classList.remove('active');
+                alert('Something went wrong. Make sure Flask server is running.');
+                analyzeBtn.style.display = 'flex';
+            });
+        }
+
+        function displayResults(data) {
+            const { result_image, report_url, detections, summary } = data;
+
+            const score = summary.health_score;
+            const circle = document.getElementById('healthCircle');
+            let scoreColor = '#2ecc71';
+            if (score < 25) scoreColor = '#e74c3c';
+            else if (score < 50) scoreColor = '#e67e22';
+            else if (score < 75) scoreColor = '#f5a623';
+
+            circle.style.borderColor = scoreColor;
+            circle.style.boxShadow = `0 0 20px ${scoreColor}40`;
+            document.getElementById('healthNum').style.color = scoreColor;
+            document.getElementById('healthNum').textContent = score;
+            document.getElementById('healthLabel').textContent = `ROAD STATUS: ${summary.health_label.toUpperCase()}`;
+            document.getElementById('healthRec').textContent = summary.recommendation;
+
+            document.getElementById('severeCount').textContent   = summary.severe;
+            document.getElementById('moderateCount').textContent = summary.moderate;
+            document.getElementById('minorCount').textContent    = summary.minor;
+
+            document.getElementById('resultImage').src = result_image;
+
+            const list = document.getElementById('detectionList');
+            list.innerHTML = '';
+
+            if (detections.length === 0) {
+                document.getElementById('noDamage').style.display = 'block';
+            } else {
+                document.getElementById('noDamage').style.display = 'none';
+                detections.forEach((d) => {
+                    const item = document.createElement('div');
+                    item.className = 'detection-item';
+                    item.innerHTML = `
+                        <div class="detection-dot ${d.severity}"></div>
+                        <div class="detection-info">
+                            <div class="detection-type">${d.type}</div>
+                            <div class="detection-meta">${d.severity} severity</div>
+                        </div>
+                        <div class="detection-conf">${d.confidence}</div>
+                    `;
+                    list.appendChild(item);
+                });
+            }
+
+            document.getElementById('downloadBtn').href = report_url;
+            document.getElementById('results').classList.add('active');
+            analyzeBtn.style.display = 'flex';
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
